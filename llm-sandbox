@@ -1,0 +1,45 @@
+#!/bin/bash
+set -e
+
+IMAGE="llm-sandbox:latest"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ENV_FILE="$SCRIPT_DIR/.env"
+
+run_container() {
+    local env_args=()
+    local userdata_args=()
+    local sysdata_args=()
+    
+    if [[ -f "$ENV_FILE" ]]; then
+        env_args=(--env-file "$ENV_FILE")
+    fi
+    
+    if [[ -n "${SANDBOX_USERDATA:-}" ]]; then
+        mkdir -p "$SANDBOX_USERDATA"
+        userdata_args=(-v "$(cd "$SANDBOX_USERDATA" && pwd):/userdata:rw")
+    fi
+    
+    if [[ -n "${SANDBOX_SYSDATA:-}" ]]; then
+        sysdata_args=(-v "$(cd "$SANDBOX_SYSDATA" && pwd):/sysdata:ro")
+    fi
+    
+    docker run --rm -i --read-only \
+        --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+        -v llm-sandbox-config:/home/app/.config/io.datasette.llm \
+        "${env_args[@]}" \
+        "${userdata_args[@]}" \
+        "${sysdata_args[@]}" \
+        "$IMAGE" "$@" 2>&1
+}
+
+output=$(run_container "$@") && rc=0 || rc=$?
+
+if echo "$output" | grep -q "Unable to find image"; then
+    echo "Image not found, building..." >&2
+    docker build -t "$IMAGE" "$SCRIPT_DIR" >&2
+    output=$(run_container "$@")
+    rc=$?
+fi
+
+echo "$output"
+exit $rc
