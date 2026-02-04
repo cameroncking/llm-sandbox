@@ -28,7 +28,31 @@ The LLM can read everything in the container, but can only write to `/userdata`:
 | `/tmp` | read-write | no | Temporary files (tmpfs, cleared on exit) |
 | Everything else | read-only | n/a | System files, installed packages |
 
-## Quick Start
+## Quick Start with Docker Compose
+
+```bash
+# Clone and configure
+cp .env.example .env
+# Edit .env with your API key(s)
+
+# Build
+docker compose build
+
+# Run a prompt
+echo "Hello" | docker compose run --rm llm -m openrouter/openrouter/auto
+
+# With user data persistence
+docker compose run --rm -v ./userdata:/userdata:rw llm \
+  -m openrouter/openrouter/auto -d /userdata/log.db "Hello"
+
+# Continue conversation
+echo "What did I say?" | docker compose run --rm -v ./userdata:/userdata:rw llm \
+  -m openrouter/openrouter/auto -d /userdata/log.db -c
+```
+
+## Quick Start with Shell Wrapper
+
+The `llm-sandbox` shell script provides a convenient wrapper with automatic image building:
 
 1. Copy the example environment file and add your API key:
 
@@ -166,19 +190,42 @@ echo "My name is Alice" | SANDBOX_USERDATA=./alice ./llm-sandbox \
 echo "What is my name?" | SANDBOX_USERDATA=./alice ./llm-sandbox \
   -m openrouter/openrouter/auto -d /userdata/log.db -c
 # Output: Your name is Alice.
+
+# Start a new conversation (clears context for -c)
+echo "/new" | SANDBOX_USERDATA=./alice ./llm-sandbox \
+  -m openrouter/openrouter/auto -d /userdata/log.db
+# Output: Starting new conversation.
+
+# Now -c continues from the new conversation
+echo "What is my name?" | SANDBOX_USERDATA=./alice ./llm-sandbox \
+  -m openrouter/openrouter/auto -d /userdata/log.db -c
+# Output: I don't know your name.
 ```
+
+The `/new` and `/clear` commands create a fresh conversation entry so that subsequent `-c` calls start from a clean slate. Previous conversations remain in the database.
 
 ### Multiple users/sessions
 
-```bash
-# User 1
-SANDBOX_USERDATA=./user1 ./llm-sandbox -m openrouter/openrouter/auto \
-  -d /userdata/log.db "Hello, I'm Bob"
+Use `SANDBOX_USERDATA_SUFFIX` to isolate users by ID:
 
-# User 2 (separate conversation history)
-SANDBOX_USERDATA=./user2 ./llm-sandbox -m openrouter/openrouter/auto \
-  -d /userdata/log.db "Hello, I'm Carol"
+```bash
+# User 156854834
+echo "I like pizza" | SANDBOX_USERDATA=./userdata SANDBOX_USERDATA_SUFFIX=156854834 \
+  ./llm-sandbox -m openrouter/openrouter/auto -d /userdata/log.db
+# Creates ./userdata/156854834/log.db
+
+# User 987654321 (separate conversation history)
+echo "I like tacos" | SANDBOX_USERDATA=./userdata SANDBOX_USERDATA_SUFFIX=987654321 \
+  ./llm-sandbox -m openrouter/openrouter/auto -d /userdata/log.db
+# Creates ./userdata/987654321/log.db
+
+# Each user's conversation is isolated
+echo "What food do I like?" | SANDBOX_USERDATA=./userdata SANDBOX_USERDATA_SUFFIX=156854834 \
+  ./llm-sandbox -m openrouter/openrouter/auto -d /userdata/log.db -c
+# Output: You mentioned you like pizza.
 ```
+
+This is useful for multi-user applications like chat bots where each user needs isolated storage.
 
 ### Combining system and user data
 
@@ -194,8 +241,11 @@ SANDBOX_SYSDATA=./system SANDBOX_USERDATA=./user1 ./llm-sandbox \
 
 | Variable | Description |
 |----------|-------------|
-| `SANDBOX_USERDATA` | Host path to bind-mount as `/userdata` (read-write) inside the container |
+| `SANDBOX_USERDATA` | Base host path for user data |
+| `SANDBOX_USERDATA_SUFFIX` | Subdirectory appended to `SANDBOX_USERDATA` (e.g., user ID) |
 | `SANDBOX_SYSDATA` | Host path to bind-mount as `/sysdata` (read-only) inside the container |
+
+The final userdata path mounted as `/userdata` is `$SANDBOX_USERDATA/$SANDBOX_USERDATA_SUFFIX` (or just `$SANDBOX_USERDATA` if suffix is not set).
 
 ### Container environment (set in `.env` file)
 

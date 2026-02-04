@@ -15,8 +15,12 @@ run_container() {
     fi
     
     if [[ -n "${SANDBOX_USERDATA:-}" ]]; then
-        mkdir -p "$SANDBOX_USERDATA"
-        userdata_args=(-v "$(cd "$SANDBOX_USERDATA" && pwd):/userdata:rw")
+        local userdata_path="$SANDBOX_USERDATA"
+        if [[ -n "${SANDBOX_USERDATA_SUFFIX:-}" ]]; then
+            userdata_path="$SANDBOX_USERDATA/$SANDBOX_USERDATA_SUFFIX"
+        fi
+        mkdir -p "$userdata_path"
+        userdata_args=(-v "$(cd "$userdata_path" && pwd):/userdata:rw")
     fi
     
     if [[ -n "${SANDBOX_SYSDATA:-}" ]]; then

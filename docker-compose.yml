@@ -1,0 +1,19 @@
+services:
+  llm:
+    build: .
+    image: llm-sandbox:latest
+    read_only: true
+    user: "1000:1000"
+    stdin_open: true
+    env_file:
+      - .env
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    volumes:
+      - llm-config:/home/app/.config/io.datasette.llm
+      # Uncomment and customize these as needed:
+      # - ./userdata:/userdata:rw
+      # - ./sysdata:/sysdata:ro
+
+volumes:
+  llm-config:
