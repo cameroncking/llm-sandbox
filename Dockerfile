@@ -3,8 +3,8 @@ FROM python:3.12-slim
 # Install llm and plugins
 RUN pip install --no-cache-dir llm llm-openrouter
 
-# Install MCP tooling
-RUN pip install --no-cache-dir mcp
+# Install MCP tooling (with HTTP client dependencies)
+RUN pip install --no-cache-dir mcp httpx httpx-sse
 
 # Fetch and cache openrouter models at build time
 RUN llm openrouter models > /dev/null && \
