@@ -191,18 +191,7 @@ echo "What is my name?" | SANDBOX_USERDATA=./alice ./llm-sandbox \
   -m openrouter/openrouter/auto -d /userdata/log.db -c
 # Output: Your name is Alice.
 
-# Start a new conversation (clears context for -c)
-echo "/new" | SANDBOX_USERDATA=./alice ./llm-sandbox \
-  -m openrouter/openrouter/auto -d /userdata/log.db
-# Output: Starting new conversation.
-
-# Now -c continues from the new conversation
-echo "What is my name?" | SANDBOX_USERDATA=./alice ./llm-sandbox \
-  -m openrouter/openrouter/auto -d /userdata/log.db -c
-# Output: I don't know your name.
 ```
-
-The `/new` and `/clear` commands create a fresh conversation entry so that subsequent `-c` calls start from a clean slate. Previous conversations remain in the database.
 
 ### Multiple users/sessions
 
